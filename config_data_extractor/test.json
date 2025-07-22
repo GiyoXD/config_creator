@@ -1,0 +1,153 @@
+{
+  "file_path": "C:\\Users\\JPZ031127\\Desktop\\config_data_extractor\\CT&INV&PL JLFHLZN25009 FCA.xlsx",
+  "timestamp": "2025-07-19T16:12:37.583751",
+  "sheets": [
+    {
+      "sheet_name": "Contract",
+      "header_font": {
+        "name": "Times New Roman",
+        "size": 10.0
+      },
+      "data_font": {
+        "name": "Times New Roman",
+        "size": 10.0
+      },
+      "start_row": 18,
+      "header_positions": [
+        {
+          "keyword": "Cargo Descprition",
+          "row": 17,
+          "column": 1
+        },
+        {
+          "keyword": "HL ITEM",
+          "row": 17,
+          "column": 2
+        },
+        {
+          "keyword": "Quantity",
+          "row": 17,
+          "column": 3
+        },
+        {
+          "keyword": "Unit",
+          "row": 17,
+          "column": 4
+        },
+        {
+          "keyword": "FCA\nSVAY RIENG",
+          "row": 17,
+          "column": 5
+        },
+        {
+          "keyword": "Amount",
+          "row": 17,
+          "column": 6
+        }
+      ]
+    },
+    {
+      "sheet_name": "Invoice",
+      "header_font": {
+        "name": "Times New Roman",
+        "size": 12.0
+      },
+      "data_font": {
+        "name": "Times New Roman",
+        "size": 12.0
+      },
+      "start_row": 21,
+      "header_positions": [
+        {
+          "keyword": "Mark & N\u00ba",
+          "row": 20,
+          "column": 1
+        },
+        {
+          "keyword": "P.O. N\u00ba",
+          "row": 20,
+          "column": 2
+        },
+        {
+          "keyword": "ITEM N\u00ba",
+          "row": 20,
+          "column": 3
+        },
+        {
+          "keyword": "Description",
+          "row": 20,
+          "column": 4
+        },
+        {
+          "keyword": "Quantity",
+          "row": 20,
+          "column": 5
+        },
+        {
+          "keyword": "Unit price (USD)",
+          "row": 20,
+          "column": 6
+        },
+        {
+          "keyword": "Amount (USD)",
+          "row": 20,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "sheet_name": "Packing list",
+      "header_font": {
+        "name": "Times New Roman",
+        "size": 12.0
+      },
+      "data_font": {
+        "name": "Times New Roman",
+        "size": 12.0
+      },
+      "start_row": 21,
+      "header_positions": [
+        {
+          "keyword": "Mark & N\u00ba",
+          "row": 20,
+          "column": 1
+        },
+        {
+          "keyword": "P.O N\u00ba",
+          "row": 20,
+          "column": 2
+        },
+        {
+          "keyword": "ITEM N\u00ba",
+          "row": 20,
+          "column": 3
+        },
+        {
+          "keyword": "Description",
+          "row": 20,
+          "column": 4
+        },
+        {
+          "keyword": "Quantity",
+          "row": 20,
+          "column": 5
+        },
+        {
+          "keyword": "N.W (kgs)",
+          "row": 20,
+          "column": 7
+        },
+        {
+          "keyword": "G.W (kgs)",
+          "row": 20,
+          "column": 8
+        },
+        {
+          "keyword": "CBM",
+          "row": 20,
+          "column": 9
+        }
+      ]
+    }
+  ]
+}

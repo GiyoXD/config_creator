@@ -1,0 +1,109 @@
+{
+  "file_path": "C:\\Users\\JPZ031127\\Desktop\\config_gen\\config_data_extractor\\CLFLH25003INV PLK DAP.xlsx",
+  "timestamp": "2025-07-21T15:17:26.990498",
+  "sheets": [
+    {
+      "sheet_name": "INV",
+      "header_font": {
+        "name": "Times New Roman",
+        "size": 16.0
+      },
+      "data_font": {
+        "name": "Times New Roman",
+        "size": 15.0
+      },
+      "start_row": 21,
+      "header_positions": [
+        {
+          "keyword": "P.O.",
+          "row": 20,
+          "column": 1
+        },
+        {
+          "keyword": "HS CODE",
+          "row": 20,
+          "column": 2
+        },
+        {
+          "keyword": "ITEM",
+          "row": 20,
+          "column": 3
+        },
+        {
+          "keyword": "DESCRIPTION",
+          "row": 20,
+          "column": 4
+        },
+        {
+          "keyword": "QUANTITY  (SQFT)",
+          "row": 20,
+          "column": 5
+        },
+        {
+          "keyword": "UNIT PRICE(USD)",
+          "row": 20,
+          "column": 6
+        },
+        {
+          "keyword": "AMOUNT(USD)",
+          "row": 20,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "sheet_name": "PAK",
+      "header_font": {
+        "name": "Times New Roman",
+        "size": 18.0
+      },
+      "data_font": {
+        "name": "Times New Roman",
+        "size": 16.0
+      },
+      "start_row": 21,
+      "header_positions": [
+        {
+          "keyword": "MARK & NOTE",
+          "row": 20,
+          "column": 1
+        },
+        {
+          "keyword": "HS CODE",
+          "row": 20,
+          "column": 2
+        },
+        {
+          "keyword": "P.O. NO.",
+          "row": 20,
+          "column": 3
+        },
+        {
+          "keyword": "Qty",
+          "row": 20,
+          "column": 4
+        },
+        {
+          "keyword": "ITEM",
+          "row": 20,
+          "column": 6
+        },
+        {
+          "keyword": "NW(KGS)",
+          "row": 20,
+          "column": 7
+        },
+        {
+          "keyword": "GW(KGS)",
+          "row": 20,
+          "column": 8
+        },
+        {
+          "keyword": "(CBM)",
+          "row": 20,
+          "column": 9
+        }
+      ]
+    }
+  ]
+}
