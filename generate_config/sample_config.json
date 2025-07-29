@@ -101,15 +101,18 @@
       "start_row": 15,
       "header_to_write": [
         { "row": 0, "col": 0, "text": "No.",              "id": "col_no",         "rowspan": 1 },
-        { "row": 0, "col": 1, "text": "ITEM Nº",              "id": "col_item",       "rowspan": 1 },
-        { "row": 0, "col": 2, "text": "Quantity",                 "id": "col_qty_sf" },
-        { "row": 0, "col": 3, "text": "Unit Price(USD)",    "id": "col_unit_price", "rowspan": 1 },
-        { "row": 0, "col": 4, "text": "Total value(USD)",   "id": "col_amount",     "rowspan": 1 }
+        { "row": 0, "col": 1, "text": "P.O. Nº",          "id": "col_po",         "rowspan": 1 },
+        { "row": 0, "col": 2, "text": "Name of\nCormodity", "id": "col_desc",       "rowspan": 1 },
+        { "row": 0, "col": 3, "text": "Description",      "id": "col_desc2",      "rowspan": 1 },
+        { "row": 0, "col": 4, "text": "Quantity\n(SF)",   "id": "col_qty_sf" },
+        { "row": 0, "col": 5, "text": "Unit Price\n(USD)", "id": "col_unit_price", "rowspan": 1 },
+        { "row": 0, "col": 6, "text": "Total value\n(USD)", "id": "col_amount",     "rowspan": 1 }
       ],
       "mappings": {
         "po":         { "key_index": 0, "id": "col_po" },
         "item":       { "key_index": 1, "id": "col_item" },
         "desc":       { "key_index": 3, "id": "col_desc", "fallback_on_none": "LEATHER" },
+        "desc2":      { "key_index": 4, "id": "col_desc2", "fallback_on_none": "LEATHER" },
         "sqft":       { "value_key": "sqft_sum", "id": "col_qty_sf" },
         "unit_price": { "key_index": 2, "id": "col_unit_price" },
         "amount": {

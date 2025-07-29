@@ -12,6 +12,7 @@ import sys
 import os
 import json
 from pathlib import Path
+# The actual configuration logic is in a separate module.
 from config_generator.config_generator import ConfigGenerator, ConfigGeneratorError
 
 
@@ -139,6 +140,7 @@ def validate_input_files(args):
     
     # Try to load and validate JSON files
     try:
+        # This line reads the file using the system's default encoding
         with open(args.quantity_data, 'r') as f:
             quantity_data = json.load(f)
         
@@ -162,6 +164,7 @@ def validate_input_files(args):
         return False
     
     try:
+        # This line also reads the file using the system's default encoding
         with open(args.template, 'r') as f:
             template_data = json.load(f)
         
@@ -219,8 +222,9 @@ def generate_configuration(args):
             if not args.quiet:
                 print(f"[CREATED] Output directory: {output_dir}")
         
-        # Generate configuration
+        # Generate configuration by calling the external class
         generator = ConfigGenerator()
+        # The error happens inside this method call, where the output file is written
         generator.generate_config(args.template, args.quantity_data, output_path)
         
         if not args.quiet:

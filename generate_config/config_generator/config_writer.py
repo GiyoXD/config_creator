@@ -63,20 +63,14 @@ class ConfigWriter:
         # Write the configuration to file with atomic operation
         temp_path = output_path + '.tmp'
         try:
-            with open(temp_path, 'w', encoding='utf-8') as file:
+            with open(temp_path, 'w', encoding='utf-8', errors='replace') as file:
                 json.dump(config, file, indent=2, ensure_ascii=False)
             
-            # Atomic move to final location
+            # Simple atomic move to final location
+            # On Windows, os.rename can't overwrite existing files, so remove first if needed
             if os.path.exists(output_path):
-                backup_path = output_path + '.backup'
-                os.rename(output_path, backup_path)
-            
+                os.remove(output_path)
             os.rename(temp_path, output_path)
-            
-            # Remove backup if write was successful
-            backup_path = output_path + '.backup'
-            if os.path.exists(backup_path):
-                os.remove(backup_path)
                 
         except IOError as e:
             # Clean up temp file if it exists

@@ -41,6 +41,7 @@ class HeaderTextUpdater:
             'P.O. Nº': 'col_po',
             'P.O N°': 'col_po',
             'P.O. N°': 'col_po',
+            'P.O. Nº': 'col_po2',  # Contract sheet variation - use different column
             
             # ITEM Nº variations
             'ITEM Nº': 'col_item',
@@ -48,7 +49,8 @@ class HeaderTextUpdater:
             'HL ITEM': 'col_item',
             
             # Description variations - special case handling
-            'Description': 'col_desc',
+            'Description': 'col_desc2',  # Contract sheet second description
+            'Name of\nCormodity': 'col_desc',  # Contract sheet variation
             'Cargo Descprition': 'col_po',  # Special mapping per requirement 3.4
             
             # Quantity variations
@@ -83,6 +85,7 @@ class HeaderTextUpdater:
             # Other common headers
             'No.': 'col_no',
             'Pallet\nNO.': 'col_pallet',
+            'PALLET\nNO.': 'col_pallet',
             'REMARKS': 'col_remarks'
         }
     
@@ -213,18 +216,39 @@ class HeaderTextUpdater:
                 else:
                     unrecognized_headers.append(f"{sheet_name}:{keyword}")
             
-            # Update header_to_write entries with actual header texts
+            # Update header_to_write entries with actual header texts and remove non-existent ones
+            headers_to_keep = []
+            
             for i, header_entry in enumerate(header_to_write):
                 if not isinstance(header_entry, dict):
                     raise HeaderTextUpdaterError(f"header_entry {i} for sheet '{sheet_name}' must be a dictionary")
                 
-                if 'id' in header_entry and header_entry['id'] in column_id_to_text:
-                    # Validate that text field exists and is modifiable
-                    if 'text' not in header_entry:
-                        raise HeaderTextUpdaterError(f"header_entry {i} for sheet '{sheet_name}' missing 'text' field")
+                # Check if this header has an ID and exists in actual data
+                if 'id' in header_entry:
+                    header_id = header_entry['id']
                     
-                    # Update text while preserving all other attributes
-                    header_entry['text'] = column_id_to_text[header_entry['id']]
+                    if header_id in column_id_to_text:
+                        # Header exists in actual data - update text and keep it
+                        if 'text' not in header_entry:
+                            raise HeaderTextUpdaterError(f"header_entry {i} for sheet '{sheet_name}' missing 'text' field")
+                        
+                        # Update text while preserving all other attributes
+                        header_entry['text'] = column_id_to_text[header_id]
+                        headers_to_keep.append(header_entry)
+                    else:
+                        # Header doesn't exist in actual data - remove it
+                        try:
+                            print(f"[INFO] Removing header '{header_entry.get('text', 'unknown')}' (id: {header_id}) from sheet '{sheet_name}' - not found in actual data")
+                        except UnicodeEncodeError:
+                            print(f"[INFO] Removing header (id: {header_id}) from sheet '{sheet_name}' - not found in actual data")
+                else:
+                    # Header without ID (parent headers with colspan) - keep them
+                    headers_to_keep.append(header_entry)
+            
+            # CRITICAL FIX: Don't modify original template - work on copy only
+            # Replace the original list with filtered headers
+            header_to_write.clear()
+            header_to_write.extend(headers_to_keep)
             
             return unrecognized_headers
             
@@ -245,7 +269,7 @@ class HeaderTextUpdater:
     
     def map_header_to_column_id(self, header_text: str) -> Optional[str]:
         """
-        Map header text to column ID using the mapping manager or fallback mappings.
+        Map header text to column ID using intelligent fuzzy matching and user configurations.
         
         Args:
             header_text: Header text from quantity analysis
@@ -258,46 +282,242 @@ class HeaderTextUpdater:
         
         # Use mapping manager if available
         if self.mapping_manager:
-            return self.mapping_manager.map_header_to_column_id(header_text)
+            mapped_id = self.mapping_manager.map_header_to_column_id(header_text)
+            if mapped_id:
+                return mapped_id
         
-        # Fallback to hardcoded mappings
+        # Try exact match first
         if header_text in self.fallback_header_mappings:
             return self.fallback_header_mappings[header_text]
         
-        # Fallback: try case-insensitive matching for common variations
-        header_lower = header_text.lower().strip()
+        # Normalize header text for fuzzy matching
+        normalized_header = self._normalize_header_text(header_text)
         
-        for mapped_header, column_id in self.fallback_header_mappings.items():
-            if mapped_header.lower().strip() == header_lower:
-                return column_id
+        # Try fuzzy matching with normalized text
+        best_match = self._find_best_fuzzy_match(normalized_header)
+        if best_match:
+            return best_match
         
-        # Additional pattern matching for common cases
-        if 'mark' in header_lower and ('nº' in header_lower or 'n°' in header_lower):
-            return 'col_static'
-        elif 'p.o' in header_lower and ('nº' in header_lower or 'n°' in header_lower):
-            return 'col_po'
-        elif 'item' in header_lower and ('nº' in header_lower or 'n°' in header_lower):
-            return 'col_item'
-        elif 'description' in header_lower:
-            return 'col_desc'
-        elif 'quantity' in header_lower:
-            return 'col_qty_sf'
-        elif 'unit price' in header_lower or 'unit_price' in header_lower:
-            return 'col_unit_price'
-        elif 'amount' in header_lower:
-            return 'col_amount'
-        elif 'n.w' in header_lower and 'kg' in header_lower:
-            return 'col_net'
-        elif 'g.w' in header_lower and 'kg' in header_lower:
-            return 'col_gross'
-        elif header_lower == 'cbm':
-            return 'col_cbm'
-        elif header_lower == 'pcs':
-            return 'col_qty_pcs'
-        elif header_lower == 'sf':
-            return 'col_qty_sf'
+        # Smart pattern matching with flexible rules
+        return self._smart_pattern_matching(normalized_header, header_text)
+    
+    def _normalize_header_text(self, header_text: str) -> str:
+        """
+        Normalize header text for better matching by removing special characters and formatting.
+        
+        Args:
+            header_text: Original header text
+            
+        Returns:
+            Normalized header text
+        """
+        import re
+        
+        # Convert to lowercase
+        normalized = header_text.lower().strip()
+        
+        # Replace common special characters and variations
+        replacements = {
+            'nº': 'no',
+            'n°': 'no',
+            'º': 'o',
+            '°': 'o',
+            '\n': ' ',
+            '\r': ' ',
+            '\t': ' ',
+            '.': '',
+            '&': 'and',
+            '(': '',
+            ')': '',
+            '[': '',
+            ']': '',
+            '{': '',
+            '}': '',
+            '/': ' ',
+            '\\': ' ',
+            '-': ' ',
+            '_': ' ',
+            ':': '',
+            ';': '',
+            ',': '',
+            '!': '',
+            '?': '',
+            '"': '',
+            "'": '',
+            '`': ''
+        }
+        
+        for old, new in replacements.items():
+            normalized = normalized.replace(old, new)
+        
+        # Remove extra spaces and normalize
+        normalized = re.sub(r'\s+', ' ', normalized).strip()
+        
+        return normalized
+    
+    def _find_best_fuzzy_match(self, normalized_header: str) -> Optional[str]:
+        """
+        Find the best fuzzy match for a normalized header.
+        
+        Args:
+            normalized_header: Normalized header text
+            
+        Returns:
+            Column ID if good match found, None otherwise
+        """
+        # Create normalized versions of all known headers
+        normalized_mappings = {}
+        for header, col_id in self.fallback_header_mappings.items():
+            norm_key = self._normalize_header_text(header)
+            normalized_mappings[norm_key] = col_id
+        
+        # Try exact match on normalized text
+        if normalized_header in normalized_mappings:
+            return normalized_mappings[normalized_header]
+        
+        # Try partial matching with high confidence
+        for norm_key, col_id in normalized_mappings.items():
+            if self._calculate_similarity(normalized_header, norm_key) > 0.8:
+                return col_id
         
         return None
+    
+    def _calculate_similarity(self, text1: str, text2: str) -> float:
+        """
+        Calculate similarity between two text strings.
+        
+        Args:
+            text1: First text string
+            text2: Second text string
+            
+        Returns:
+            Similarity score between 0 and 1
+        """
+        if not text1 or not text2:
+            return 0.0
+        
+        # Simple similarity based on common words and characters
+        words1 = set(text1.split())
+        words2 = set(text2.split())
+        
+        if not words1 or not words2:
+            # Character-based similarity for short strings
+            common_chars = sum(1 for c in text1 if c in text2)
+            max_len = max(len(text1), len(text2))
+            return common_chars / max_len if max_len > 0 else 0.0
+        
+        # Word-based similarity
+        common_words = words1.intersection(words2)
+        total_words = words1.union(words2)
+        
+        word_similarity = len(common_words) / len(total_words) if total_words else 0.0
+        
+        # Character-based similarity as backup
+        common_chars = sum(1 for c in text1 if c in text2)
+        max_len = max(len(text1), len(text2))
+        char_similarity = common_chars / max_len if max_len > 0 else 0.0
+        
+        # Weighted combination
+        return (word_similarity * 0.7) + (char_similarity * 0.3)
+    
+    def _smart_pattern_matching(self, normalized_header: str, original_header: str) -> Optional[str]:
+        """
+        Smart pattern matching for headers using flexible rules.
+        
+        Args:
+            normalized_header: Normalized header text
+            original_header: Original header text
+            
+        Returns:
+            Column ID if pattern matches, None otherwise
+        """
+        # Define flexible patterns with multiple variations
+        patterns = {
+            'col_static': [
+                ['mark', 'no'], ['mark', 'number'], ['mark', 'num']
+            ],
+            'col_po': [
+                ['po', 'no'], ['po', 'number'], ['po', 'num'], 
+                ['purchase', 'order'], ['p', 'o'], ['pon']
+            ],
+            'col_item': [
+                ['item', 'no'], ['item', 'number'], ['item', 'num'],
+                ['hl', 'item'], ['item']
+            ],
+            'col_desc': [
+                ['description'], ['desc'], ['commodity'], ['name', 'commodity'],
+                ['cargo', 'description'], ['product', 'description']
+            ],
+            'col_qty_sf': [
+                ['quantity', 'sf'], ['qty', 'sf'], ['quantity'], ['qty']
+            ],
+            'col_qty_pcs': [
+                ['quantity', 'pcs'], ['qty', 'pcs'], ['pcs'], ['pieces']
+            ],
+            'col_unit_price': [
+                ['unit', 'price'], ['price', 'unit'], ['unit', 'cost'],
+                ['price'], ['fca'], ['unit']
+            ],
+            'col_amount': [
+                ['amount'], ['total', 'value'], ['total', 'amount'],
+                ['value'], ['total']
+            ],
+            'col_no': [
+                ['no'], ['number'], ['num'], ['seq'], ['sequence']
+            ],
+            'col_net': [
+                ['net', 'weight'], ['nw'], ['n', 'w'], ['net']
+            ],
+            'col_gross': [
+                ['gross', 'weight'], ['gw'], ['g', 'w'], ['gross']
+            ],
+            'col_cbm': [
+                ['cbm'], ['cubic', 'meter'], ['volume']
+            ],
+            'col_pallet': [
+                ['pallet'], ['pallet', 'no'], ['pallet', 'number']
+            ],
+            'col_remarks': [
+                ['remarks'], ['remark'], ['note'], ['notes'], ['comment']
+            ]
+        }
+        
+        # Check each pattern
+        for col_id, pattern_groups in patterns.items():
+            for pattern_words in pattern_groups:
+                if self._matches_pattern(normalized_header, pattern_words):
+                    return col_id
+        
+        # Log unrecognized header for user review
+        print(f"[WARNING] Unrecognized header: '{original_header}' (normalized: '{normalized_header}')")
+        print(f"[HINT] You can add custom mapping in mapping_config.json")
+        
+        return None
+    
+    def _matches_pattern(self, normalized_header: str, pattern_words: list) -> bool:
+        """
+        Check if normalized header matches a pattern of words.
+        
+        Args:
+            normalized_header: Normalized header text
+            pattern_words: List of words that should be present
+            
+        Returns:
+            True if pattern matches
+        """
+        header_words = normalized_header.split()
+        
+        # All pattern words should be present (flexible order)
+        for pattern_word in pattern_words:
+            found = False
+            for header_word in header_words:
+                if pattern_word in header_word or header_word in pattern_word:
+                    found = True
+                    break
+            if not found:
+                return False
+        
+        return True
     
     def _validate_template_structure(self, template: Dict[str, Any]) -> None:
         """
@@ -341,7 +561,10 @@ class HeaderTextUpdater:
         
         # Log unrecognized headers for manual review
         # In a production system, this could write to a log file or send alerts
-        print(f"Warning: Unrecognized headers found: {unrecognized_headers}")
+        try:
+            print(f"Warning: Unrecognized headers found: {unrecognized_headers}")
+        except UnicodeEncodeError:
+            print(f"Warning: Unrecognized headers found: {len(unrecognized_headers)} items")
         
         # Apply position-based fallback mapping
         data_mapping = template.get('data_mapping', {})

@@ -30,6 +30,7 @@ class HeaderDetector:
         """
         Search for header keywords in the worksheet and record their positions.
         Once a header row is found, extract all headers from that entire row.
+        Handles both single-row and two-row headers by checking for merged cells.
         
         Args:
             worksheet: The openpyxl worksheet to analyze
@@ -58,9 +59,16 @@ class HeaderDetector:
             if header_row_found:
                 break
         
-        # If we found a header row, extract all headers from that row
+        # If we found a header row, determine if it's a single or double header
         if header_row_found:
-            header_matches = self._extract_all_headers_from_row(worksheet, header_row_found)
+            is_double_header = self._is_double_header(worksheet, header_row_found)
+            
+            if is_double_header:
+                # Extract headers from both rows for double header
+                header_matches = self._extract_double_header(worksheet, header_row_found)
+            else:
+                # Extract headers from single row
+                header_matches = self._extract_all_headers_from_row(worksheet, header_row_found)
             
             # Apply quantity mode enhancement if enabled
             if self.quantity_mode:
@@ -70,20 +78,20 @@ class HeaderDetector:
     
     def calculate_start_row(self, header_positions: List[HeaderMatch]) -> int:
         """
-        Calculate the start row for data based on header positions.
+        Calculate the start row where headers begin.
         
         Args:
             header_positions: List of HeaderMatch objects
             
         Returns:
-            The row number where data starts (header_row + 1)
+            The row number where headers start (min_header_row)
         """
         if not header_positions:
             return 1  # Default to row 1 if no headers found
         
-        # Find the maximum header row and add 1
-        max_header_row = max(match.row for match in header_positions)
-        return max_header_row + 1
+        # Find the minimum header row (where headers start)
+        min_header_row = min(match.row for match in header_positions)
+        return min_header_row
     
     def _extract_all_headers_from_row(self, worksheet: Worksheet, header_row: int) -> List[HeaderMatch]:
         """
@@ -161,16 +169,105 @@ class HeaderDetector:
         
         return enhanced_headers
     
+    def _is_double_header(self, worksheet: Worksheet, header_row: int) -> bool:
+        """
+        Check if the header has two rows by examining if the first column is merged.
+        
+        Args:
+            worksheet: The openpyxl worksheet to analyze
+            header_row: The row number where header was found
+            
+        Returns:
+            True if this is a double header (first column is merged), False otherwise
+        """
+        # Get the first column cell (column A) of the header row
+        first_cell = worksheet.cell(row=header_row, column=1)
+        
+        # Check if this cell is part of a merged range
+        for merged_range in worksheet.merged_cells.ranges:
+            if first_cell.coordinate in merged_range:
+                # If the merged range spans multiple rows, it's a double header
+                if merged_range.max_row > merged_range.min_row:
+                    return True
+        
+        return False
+    
+    def _extract_double_header(self, worksheet: Worksheet, header_row: int) -> List[HeaderMatch]:
+        """
+        Extract headers from a two-row header structure.
+        
+        Args:
+            worksheet: The openpyxl worksheet to analyze
+            header_row: The first row of the header
+            
+        Returns:
+            List of HeaderMatch objects for all headers in both rows
+        """
+        header_matches = []
+        
+        # Extract headers from the first row
+        for cell in worksheet[header_row]:
+            if cell.value is not None:
+                cell_value = str(cell.value).strip()
+                if cell_value:
+                    header_match = HeaderMatch(
+                        keyword=cell_value,
+                        row=cell.row,
+                        column=cell.column
+                    )
+                    header_matches.append(header_match)
+        
+        # Extract headers from the second row (header_row + 1)
+        second_row = header_row + 1
+        for cell in worksheet[second_row]:
+            if cell.value is not None:
+                cell_value = str(cell.value).strip()
+                if cell_value:
+                    header_match = HeaderMatch(
+                        keyword=cell_value,
+                        row=cell.row,
+                        column=cell.column
+                    )
+                    header_matches.append(header_match)
+        
+        return header_matches
+    
     def _matches_keyword(self, cell_value: str, keyword: str) -> bool:
         """
         Check if a cell value matches a header keyword.
+        Uses strict matching to avoid false positives - cell should be primarily the keyword.
         
         Args:
             cell_value: The cell value to check
             keyword: The keyword to match against
             
         Returns:
-            True if the cell value contains the keyword (case-insensitive)
+            True if the cell value is primarily the keyword (case-insensitive)
         """
-        # Case-insensitive matching
-        return keyword.lower() in cell_value.lower()
+        cell_lower = cell_value.lower().strip()
+        keyword_lower = keyword.lower()
+        
+        # Exact match
+        if cell_lower == keyword_lower:
+            return True
+            
+        # Allow some common variations but keep it strict
+        # Remove common punctuation and extra spaces
+        import re
+        cell_clean = re.sub(r'[^\w\s]', ' ', cell_lower)
+        cell_clean = ' '.join(cell_clean.split())  # normalize whitespace
+        
+        keyword_clean = re.sub(r'[^\w\s]', ' ', keyword_lower)
+        keyword_clean = ' '.join(keyword_clean.split())
+        
+        # Check if cleaned versions match
+        if cell_clean == keyword_clean:
+            return True
+            
+        # For very short cells (likely headers), allow if keyword is majority of content
+        if len(cell_lower) <= 20 and keyword_lower in cell_lower:
+            # Calculate similarity - keyword should be significant portion
+            similarity = len(keyword_lower) / len(cell_lower)
+            return similarity >= 0.6
+        
+        return False
