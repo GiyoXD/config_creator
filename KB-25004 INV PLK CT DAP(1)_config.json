@@ -11,7 +11,7 @@
   },
   "data_mapping": {
     "Invoice": {
-      "start_row": 21,
+      "start_row": 22,
       "add_blank_before_footer": false,
       "static_content_before_footer": {
         "2": "LEATHER (HS.CODE: 4107.12.00)"
@@ -27,7 +27,7 @@
         {
           "row": 0,
           "col": 1,
-          "text": "P.O. Nº",
+          "text": "P.O Nº",
           "id": "col_po",
           "rowspan": 1
         },
@@ -48,20 +48,20 @@
         {
           "row": 0,
           "col": 4,
-          "text": "Quantity\n(SF)",
+          "text": "Quantity               (SF)",
           "id": "col_qty_sf"
         },
         {
           "row": 0,
           "col": 5,
-          "text": "Unit Price\n(USD)",
+          "text": "Unite price   (USD)",
           "id": "col_unit_price",
           "rowspan": 1
         },
         {
           "row": 0,
           "col": 6,
-          "text": "Amount(USD)asdfasdfasdfasdfasdfasdf",
+          "text": "Amount (USD)",
           "id": "col_amount",
           "rowspan": 1
         }
@@ -231,46 +231,32 @@
       }
     },
     "Contract": {
-      "start_row": 15,
+      "start_row": 11,
       "header_to_write": [
         {
           "row": 0,
           "col": 0,
-          "text": "No.",
-          "id": "col_no",
-          "rowspan": 1
-        },
-        {
-          "row": 0,
-          "col": 1,
-          "text": "P.O. Nº",
-          "id": "col_po",
-          "rowspan": 1
-        },
-        {
-          "row": 0,
-          "col": 3,
-          "text": "Description",
+          "text": "Description of Goods",
           "id": "col_desc",
           "rowspan": 1
         },
         {
           "row": 0,
-          "col": 4,
-          "text": "Quantity\n(SF)",
+          "col": 7,
+          "text": "Quantity (SF)",
           "id": "col_qty_sf"
         },
         {
           "row": 0,
-          "col": 5,
-          "text": "Unit Price\n(USD)",
+          "col": 6,
+          "text": "Unit Price",
           "id": "col_unit_price",
           "rowspan": 1
         },
         {
           "row": 0,
-          "col": 6,
-          "text": "Total value\n(USD)",
+          "col": 8,
+          "text": "Amount",
           "id": "col_amount",
           "rowspan": 1
         }
@@ -326,8 +312,8 @@
         ],
         "style": {
           "font": {
-            "name": "Times New Roman",
-            "size": 16.0,
+            "name": "微软雅黑",
+            "size": 7.0,
             "bold": true
           },
           "alignment": {
@@ -382,11 +368,11 @@
         ],
         "default_font": {
           "name": "Times New Roman",
-          "size": 14.0
+          "size": 10.0
         },
         "header_font": {
-          "name": "Times New Roman",
-          "size": 16.0,
+          "name": "微软雅黑",
+          "size": 7.0,
           "bold": true
         },
         "default_alignment": {
@@ -429,7 +415,7 @@
       }
     },
     "Packing list": {
-      "start_row": 20,
+      "start_row": 21,
       "add_blank_before_footer": true,
       "static_content_before_footer": {
         "2": "LEATHER (HS.CODE: 4107.12.00)"
@@ -449,67 +435,60 @@
         {
           "row": 0,
           "col": 1,
-          "text": "PALLET\nNO.",
-          "id": "col_pallet",
-          "rowspan": 2
-        },
-        {
-          "row": 0,
-          "col": 2,
           "text": "P.O Nº",
           "id": "col_po",
           "rowspan": 2
         },
         {
           "row": 0,
-          "col": 3,
+          "col": 2,
           "text": "ITEM Nº",
           "id": "col_item",
           "rowspan": 2
         },
         {
           "row": 0,
-          "col": 4,
+          "col": 3,
           "text": "Description",
           "id": "col_desc",
           "rowspan": 2
         },
         {
           "row": 0,
-          "col": 5,
+          "col": 4,
           "text": "Quantity",
           "colspan": 2
         },
         {
           "row": 0,
-          "col": 7,
+          "col": 6,
           "text": "N.W (kgs)",
           "id": "col_net",
           "rowspan": 2
         },
         {
           "row": 0,
-          "col": 8,
-          "text": "G.W (kgs)",
+          "col": 7,
+          "text": "G.W(kgs)",
           "id": "col_gross",
           "rowspan": 2
         },
         {
           "row": 0,
-          "col": 9,
+          "col": 8,
           "text": "CBM",
           "id": "col_cbm",
           "rowspan": 2
         },
         {
           "row": 1,
-          "col": 5,
+          "col": 4,
           "text": "PCS",
           "id": "col_qty_pcs"
         },
         {
           "row": 1,
-          "col": 6,
+          "col": 5,
           "text": "SF",
           "id": "col_qty_sf"
         }

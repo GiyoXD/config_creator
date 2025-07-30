@@ -95,53 +95,38 @@ class XLSXGenerator:
     
     def _apply_text_replacements(self, workbook: Workbook) -> None:
         """
-        Apply text replacements to the workbook.
+        Apply text replacements to the workbook using enhanced circular pattern checking.
         
         Args:
             workbook: The workbook to process
         """
-        replacement_stats = {
-            'date': 0,
-            'date_label': 0,
-            'contract_no': 0,
-            'invoice_no': 0,
-            'ref_no': 0,
-            'etd': 0
-        }
+        # Import the enhanced text processor
+        from enhanced_text_processor import EnhancedTextProcessor
         
+        # Create enhanced processor instance
+        enhanced_processor = EnhancedTextProcessor()
+        
+        # Initialize stats for all available categories dynamically
+        total_replacement_stats = {category: 0 for category in enhanced_processor.get_replacement_patterns().keys()}
+        
+        # Process each worksheet with enhanced circular pattern checking
         for sheet_name in workbook.sheetnames:
             worksheet = workbook[sheet_name]
-            logger.info(f"Processing text replacements in sheet: {sheet_name}")
+            logger.info(f"Processing text replacements in sheet: {sheet_name} (Enhanced Mode)")
             
-            # Process each cell in the worksheet using the new label-based approach
-            for row in worksheet.iter_rows():
-                for cell in row:
-                    if cell.value is not None and isinstance(cell.value, str):
-                        # Check if this cell contains a label we want to replace
-                        label_match = self.text_processor._find_label_match(cell.value)
-                        if label_match:
-                            # Find the value cell - check next few columns
-                            value_cell = None
-                            
-                            # Check the next 3 columns for a value
-                            for offset in range(1, 4):
-                                check_cell = worksheet.cell(row=cell.row, column=cell.column + offset)
-                                if check_cell.value is not None:
-                                    value_cell = check_cell
-                                    break
-                            
-                            if value_cell is not None:
-                                # Replace the value
-                                value_cell.value = label_match['replacement']
-                                # Count the replacement
-                                replacement_stats[label_match['category']] += 1
+            # Use the enhanced processor with circular pattern checking
+            sheet_stats = enhanced_processor.process_worksheet_with_circular_pattern(worksheet)
+            
+            # Accumulate statistics
+            for category, count in sheet_stats.items():
+                total_replacement_stats[category] += count
         
         # Log replacement statistics
-        total_replacements = sum(replacement_stats.values())
-        logger.info(f"Text replacements completed: {total_replacements} total")
-        for category, count in replacement_stats.items():
+        total_replacements = sum(total_replacement_stats.values())
+        logger.info(f"Enhanced text replacements completed: {total_replacements} total")
+        for category, count in total_replacement_stats.items():
             if count > 0:
-                logger.info(f"  {category}: {count} replacements")
+                logger.info(f"  {category}: {count} replacements (circular pattern)")
     
     def _apply_row_removal(self, workbook: Workbook) -> None:
         """

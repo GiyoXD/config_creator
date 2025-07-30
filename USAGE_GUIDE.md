@@ -73,13 +73,32 @@ python main.py "CT&INV&PL MT2-25005E DAP.xlsx" \
 1. **Analyzes** your Excel file to extract structure, fonts, and data positions
 2. **Generates** a configuration file based on the analysis and template
 3. **Creates** a header log showing which headers were found and mapped
-4. **Optionally** processes the Excel file with text replacement and row removal
+4. **Optionally** processes the Excel file with:
+   - **Enhanced text replacement** using circular pattern checking
+   - **Row removal** with merge restoration
+   - **Intelligent label detection** for unusual positioning
 
 ## Output Files
 
 - `*_config.json` - Final configuration file
 - `*_headers_found.txt` - Header analysis and mapping status
 - `*_processed.xlsx` - Processed Excel file (if --generate-xlsx used)
+
+## Enhanced Text Replacement Features
+
+The new enhanced text replacement uses **circular pattern checking** to find the correct target cell:
+
+- **Intelligent positioning**: Checks adjacent cells in priority order (right, below, above, diagonal)
+- **Content-aware scoring**: Evaluates cells based on their content suitability
+- **Flexible label matching**: Works with unusual label positions and foreign languages
+- **Pattern-based detection**: Uses regex patterns to identify different data types
+
+### Test the Enhanced Features
+
+Run the demo to see how it works:
+```bash
+python demo_enhanced_text_replacement.py
+```
 
 ## Need Help?
 
