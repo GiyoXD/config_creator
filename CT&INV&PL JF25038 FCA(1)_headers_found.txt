@@ -1,38 +1,39 @@
 ================================================================================
 HEADERS FOUND IN EXCEL FILE
 ================================================================================
-Excel File: C:\Users\JPZ031127\Desktop\config_gen\KB-25004 INV PLK CT DAP(1).xlsx
-Analysis Time: 2025-07-30T12:49:53.701296
+Excel File: C:\Users\JPZ031127\Desktop\config_gen\CT&INV&PL JF25038 FCA(1).xlsx
+Analysis Time: 2025-07-30T12:20:39.880239
 ================================================================================
 
 SHEET: Contract
 ----------------------------------------
-Start Row: 11
-Header Font: 微软雅黑 7.0
-Data Font: Times New Roman 10.0
+Start Row: 15
+Header Font: Times New Roman 16.0
+Data Font: Times New Roman 14.0
 
 HEADERS FOUND:
-   1. 'Description of Goods' (Row: 11, Col: 1) ❌ MISSING
-   2. 'Unit Price' (Row: 11, Col: 7) ❌ MISSING
-   3. 'Quantity (SF)' (Row: 11, Col: 8) ❌ MISSING
-   4. 'Amount' (Row: 11, Col: 9) ✅ MAPPED → col_amount
+   1. 'No.' (Row: 15, Col: 1) ✅ MAPPED → col_no
+   2. 'ITEM Nº' (Row: 15, Col: 2) ✅ MAPPED → col_item
+   3. 'Quantity(SF)' (Row: 15, Col: 3) ❌ MISSING
+   4. 'Unit Price(USD)' (Row: 15, Col: 4) ✅ MAPPED → col_unit_price
+   5. 'Total value(USD)' (Row: 15, Col: 5) ✅ MAPPED → col_amount
 
 ================================================================================
 
 SHEET: Invoice
 ----------------------------------------
-Start Row: 22
+Start Row: 21
 Header Font: Times New Roman 12.0
 Data Font: Times New Roman 12.0
 
 HEADERS FOUND:
-   1. 'Mark & Nº' (Row: 22, Col: 1) ✅ MAPPED → col_static
-   2. 'P.O Nº' (Row: 22, Col: 2) ✅ MAPPED → col_po
-   3. 'ITEM Nº' (Row: 22, Col: 3) ✅ MAPPED → col_item
-   4. 'Description' (Row: 22, Col: 4) ✅ MAPPED → col_desc
-   5. 'Quantity               (SF)' (Row: 22, Col: 5) ✅ MAPPED → col_qty_sf
-   6. 'Unite price   (USD)' (Row: 22, Col: 6) ✅ MAPPED → col_unit_price
-   7. 'Amount (USD)' (Row: 22, Col: 7) ✅ MAPPED → col_amount
+   1. 'Mark & Nº' (Row: 21, Col: 1) ✅ MAPPED → col_static
+   2. 'P.O. Nº' (Row: 21, Col: 2) ✅ MAPPED → col_po
+   3. 'ITEM Nº' (Row: 21, Col: 3) ✅ MAPPED → col_item
+   4. 'Description' (Row: 21, Col: 4) ✅ MAPPED → col_desc
+   5. 'Quantity(SF)' (Row: 21, Col: 5) ❌ MISSING
+   6. 'Unit price (USD)' (Row: 21, Col: 6) ✅ MAPPED → col_unit_price
+   7. 'Amount (USD)' (Row: 21, Col: 7) ✅ MAPPED → col_amount
 
 ================================================================================
 
@@ -47,9 +48,9 @@ HEADERS FOUND:
    2. 'P.O Nº' (Row: 21, Col: 2) ✅ MAPPED → col_po
    3. 'ITEM Nº' (Row: 21, Col: 3) ✅ MAPPED → col_item
    4. 'Description' (Row: 21, Col: 4) ✅ MAPPED → col_desc
-   5. 'Quantity' (Row: 21, Col: 5) ✅ MAPPED → col_qty_sf
+   5. 'Quantity(SF)' (Row: 21, Col: 5) ❌ MISSING
    6. 'N.W (kgs)' (Row: 21, Col: 7) ✅ MAPPED → col_net
-   7. 'G.W(kgs)' (Row: 21, Col: 8) ✅ MAPPED → col_gross
+   7. 'G.W (kgs)' (Row: 21, Col: 8) ✅ MAPPED → col_gross
    8. 'CBM' (Row: 21, Col: 9) ✅ MAPPED → col_cbm
    9. 'PCS' (Row: 22, Col: 5) ✅ MAPPED → col_qty_pcs
   10. 'SF' (Row: 22, Col: 6) ✅ MAPPED → col_qty_sf
@@ -62,9 +63,9 @@ MISSING HEADERS SUMMARY
 ================================================================================
 Found 3 headers that are not in mapping_config.json:
 
-   1. 'Description of Goods'
-   2. 'Unit Price'
-   3. 'Quantity (SF)'
+   1. 'Quantity(SF)'
+   2. 'Quantity(SF)'
+   3. 'Quantity(SF)'
 
 ================================================================================
 
@@ -88,6 +89,6 @@ Suggested column IDs based on header content:
 - col_remarks: For remarks/notes columns
 
 Example commands for missing headers:
-python generate_config/add_mapping.py --add-header "Description of Goods:col_desc"
-python generate_config/add_mapping.py --add-header "Unit Price:col_unit_price"
-python generate_config/add_mapping.py --add-header "Quantity (SF):col_qty_sf"
+python generate_config/add_mapping.py --add-header "Quantity(SF):col_qty_sf"
+python generate_config/add_mapping.py --add-header "Quantity(SF):col_qty_sf"
+python generate_config/add_mapping.py --add-header "Quantity(SF):col_qty_sf"

@@ -374,3 +374,225 @@ def merge_vertical_cells_in_range(worksheet: Worksheet, scan_col: int, start_row
 
         # Move the main index past the just-scanned range
         row_idx = end_of_merge_row + 1
+
+
+# ============================================================================
+# EMPTY MERGE OFFSET TRACKING SYSTEM
+# ============================================================================
+
+class MergeOffsetTracker:
+    """
+    Tracks row operations to calculate position offsets for empty merge restoration.
+    """
+    
+    def __init__(self):
+        self.operations = []  # List of (operation_type, position, count, sheet_name)
+        self.debug = True
+    
+    def log_delete_rows(self, start_row: int, count: int, sheet_name: str):
+        """Log a row deletion operation."""
+        self.operations.append(('delete', start_row, count, sheet_name))
+        if self.debug:
+            print(f"[OFFSET] Logged deletion: {count} rows from {start_row} in '{sheet_name}'")
+    
+    def log_insert_rows(self, position: int, count: int, sheet_name: str):
+        """Log a row insertion operation."""
+        self.operations.append(('insert', position, count, sheet_name))
+        if self.debug:
+            print(f"[OFFSET] Logged insertion: {count} rows at {position} in '{sheet_name}'")
+    
+    def calculate_new_position(self, original_row: int, sheet_name: str) -> int:
+        """Calculate the new position of a row after all operations."""
+        current_row = original_row
+        
+        if self.debug:
+            print(f"[OFFSET] Calculating position for original row {original_row} in '{sheet_name}'")
+        
+        for op_type, position, count, op_sheet in self.operations:
+            if op_sheet != sheet_name:
+                continue  # Skip operations on other sheets
+            
+            old_row = current_row
+            
+            if op_type == 'delete':
+                # Delete operation: rows from 'position' to 'position + count - 1' are deleted
+                delete_start = position
+                delete_end = position + count - 1
+                
+                if current_row < delete_start:
+                    # Row is BEFORE deletion range - no effect
+                    pass
+                elif current_row <= delete_end:
+                    # Row is WITHIN deletion range - it gets deleted (invalid position)
+                    current_row = -1  # Mark as invalid
+                    if self.debug:
+                        print(f"[OFFSET] Row {old_row} is WITHIN deletion range [{delete_start}-{delete_end}] - DELETED")
+                    break  # No point in continuing if row is deleted
+                else:
+                    # Row is AFTER deletion range - shift up by count
+                    current_row -= count
+                    if self.debug:
+                        print(f"[OFFSET] Delete [{delete_start}-{delete_end}] shifts row {old_row} → {current_row}")
+            
+            elif op_type == 'insert':
+                # Insert operation: 'count' rows inserted at 'position'
+                if current_row >= position:
+                    # Row is at or after insertion point - shift down
+                    current_row += count
+                    if self.debug:
+                        print(f"[OFFSET] Insert {count} at {position} shifts row {old_row} → {current_row}")
+                # If current_row < position, no effect
+        
+        if self.debug:
+            print(f"[OFFSET] Final position: {original_row} → {current_row}")
+        
+        return current_row
+
+
+def store_empty_merges_with_coordinates(workbook: openpyxl.Workbook, sheet_names: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Store empty merges (merges with no value) along with their coordinates for offset-based restoration.
+    
+    Args:
+        workbook: The openpyxl workbook
+        sheet_names: List of sheet names to process
+    
+    Returns:
+        Dictionary mapping sheet names to lists of empty merge data
+    """
+    empty_merges = {}
+    
+    print("\n" + "="*60)
+    print("DEBUG: STORING EMPTY MERGES WITH COORDINATES")
+    print("="*60)
+    
+    for sheet_name in sheet_names:
+        if sheet_name in workbook.sheetnames:
+            worksheet = workbook[sheet_name]
+            sheet_empty_merges = []
+            merged_ranges_copy = list(worksheet.merged_cells.ranges)
+            
+            print(f"Processing sheet '{sheet_name}' for empty merges...")
+            
+            for merged_range in merged_ranges_copy:
+                min_col, min_row, max_col, max_row = merged_range.bounds
+                
+                # Only process single-row merges (same as existing system)
+                if max_row != min_row:
+                    continue
+                
+                # Only process merges in our target area (row 10+)
+                if min_row < 10:
+                    continue
+                
+                # Get the top-left cell value
+                top_left_cell = worksheet.cell(row=min_row, column=min_col)
+                cell_value = top_left_cell.value
+                
+                # Only store if the merge is EMPTY (no value)
+                if cell_value is None or str(cell_value).strip() == "":
+                    col_span = max_col - min_col + 1
+                    
+                    # Get row height
+                    row_height = None
+                    try:
+                        row_dim = worksheet.row_dimensions[min_row]
+                        row_height = row_dim.height
+                    except KeyError:
+                        pass
+                    
+                    empty_merge_data = {
+                        'original_row': min_row,
+                        'col': min_col,
+                        'span': col_span,
+                        'height': row_height,
+                        'coord': merged_range.coord  # For debugging
+                    }
+                    
+                    sheet_empty_merges.append(empty_merge_data)
+                    print(f"  Found empty merge: {merged_range.coord} (row={min_row}, col={min_col}, span={col_span})")
+            
+            empty_merges[sheet_name] = sheet_empty_merges
+            print(f"  Stored {len(sheet_empty_merges)} empty merges for sheet '{sheet_name}'")
+        else:
+            empty_merges[sheet_name] = []
+    
+    total_empty_merges = sum(len(merges) for merges in empty_merges.values())
+    print("="*60)
+    print(f"DEBUG: EMPTY MERGE STORAGE COMPLETE - Total: {total_empty_merges}")
+    print("="*60)
+    
+    return empty_merges
+
+
+def restore_empty_merges_with_offset(workbook: openpyxl.Workbook, 
+                                   empty_merges: Dict[str, List[Dict[str, Any]]], 
+                                   offset_tracker: MergeOffsetTracker,
+                                   sheet_names: List[str]):
+    """
+    Restore empty merges using offset calculations.
+    
+    Args:
+        workbook: The openpyxl workbook
+        empty_merges: Dictionary of empty merge data from storage
+        offset_tracker: The offset tracker with logged operations
+        sheet_names: List of sheet names to process
+    """
+    print("\n" + "="*60)
+    print("DEBUG: RESTORING EMPTY MERGES WITH OFFSET CALCULATION")
+    print("="*60)
+    
+    restored_count = 0
+    failed_count = 0
+    
+    for sheet_name in sheet_names:
+        if sheet_name not in empty_merges or not empty_merges[sheet_name]:
+            continue
+        
+        worksheet = workbook[sheet_name]
+        sheet_merges = empty_merges[sheet_name]
+        
+        print(f"Restoring {len(sheet_merges)} empty merges in sheet '{sheet_name}'...")
+        
+        for i, merge_data in enumerate(sheet_merges):
+            original_row = merge_data['original_row']
+            col = merge_data['col']
+            span = merge_data['span']
+            height = merge_data['height']
+            
+            # Calculate new position using offset tracker
+            new_row = offset_tracker.calculate_new_position(original_row, sheet_name)
+            
+            print(f"  Empty merge {i+1}: {original_row} → {new_row} (col={col}, span={span})")
+            
+            # Validate the new position
+            if new_row <= 0:
+                if new_row == -1:
+                    print(f"    SKIP: Merge was in deleted range (row {original_row})")
+                else:
+                    print(f"    SKIP: Invalid position {new_row}")
+                failed_count += 1
+                continue
+            
+            try:
+                # Restore the merge
+                end_col = col + span - 1
+                worksheet.merge_cells(start_row=new_row, start_column=col, 
+                                    end_row=new_row, end_column=end_col)
+                
+                # Restore row height if available
+                if height is not None:
+                    worksheet.row_dimensions[new_row].height = height
+                
+                print(f"    SUCCESS: Restored merge at ({new_row}, {col}) span={span}")
+                restored_count += 1
+                
+            except Exception as e:
+                print(f"    FAILED: {e}")
+                failed_count += 1
+    
+    print("="*60)
+    print(f"DEBUG: EMPTY MERGE RESTORATION COMPLETE")
+    print(f"  Restored: {restored_count}")
+    print(f"  Failed: {failed_count}")
+    print("="*60)

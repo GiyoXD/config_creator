@@ -66,9 +66,19 @@ class XLSXGenerator:
             workbook = load_workbook(input_file)
             
             # --- Store merges before any destructive operations ---
-            from merge_utils import store_original_merges, find_and_restore_merges_heuristic
+            from merge_utils import (store_original_merges, find_and_restore_merges_heuristic,
+                                   store_empty_merges_with_coordinates, restore_empty_merges_with_offset,
+                                   MergeOffsetTracker)
             sheet_names = workbook.sheetnames
+            
+            # Store value-based merges (existing system)
             stored_merges = store_original_merges(workbook, sheet_names)
+            
+            # Store empty merges (new system)
+            empty_merges = store_empty_merges_with_coordinates(workbook, sheet_names)
+            
+            # Initialize offset tracker
+            offset_tracker = MergeOffsetTracker()
             
             # Step 1: Text Replacement
             if enable_text_replacement:
@@ -78,10 +88,14 @@ class XLSXGenerator:
             # Step 2: Row Removal
             if enable_row_removal:
                 logger.info("Performing row removal...")
-                self._apply_row_removal(workbook)
+                self._apply_row_removal(workbook, offset_tracker)
             
             # --- Restore merges after all destructive operations ---
+            # Restore value-based merges (existing system)
             find_and_restore_merges_heuristic(workbook, stored_merges, sheet_names)
+            
+            # Restore empty merges (new system)
+            restore_empty_merges_with_offset(workbook, empty_merges, offset_tracker, sheet_names)
             
             # Save the processed workbook
             workbook.save(output_file)
@@ -128,12 +142,13 @@ class XLSXGenerator:
             if count > 0:
                 logger.info(f"  {category}: {count} replacements (circular pattern)")
     
-    def _apply_row_removal(self, workbook: Workbook) -> None:
+    def _apply_row_removal(self, workbook: Workbook, offset_tracker) -> None:
         """
         Apply row removal to the workbook.
         
         Args:
             workbook: The workbook to process
+            offset_tracker: MergeOffsetTracker instance for logging operations
         """
         removal_stats = {
             'total_header_rows': 0,
@@ -152,7 +167,7 @@ class XLSXGenerator:
             
             # Process the worksheet WITHOUT internal merge handling
             # (xlsx_generator handles merges at the top level)
-            self.row_processor._process_worksheet_rows_no_merge_handling(worksheet)
+            self.row_processor._process_worksheet_rows_with_offset_tracking(worksheet, offset_tracker)
             
             # Calculate rows removed
             removal_stats['rows_removed'] += stats['rows_to_remove']

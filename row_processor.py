@@ -152,6 +152,32 @@ class RowProcessor:
         
         logger.info(f"Completed row processing for sheet '{worksheet.title}' (no merge handling)")
     
+    def _process_worksheet_rows_with_offset_tracking(self, worksheet: Worksheet, offset_tracker) -> None:
+        """
+        Process rows in a single worksheet WITH offset tracking for empty merges.
+        
+        Args:
+            worksheet: The worksheet to process
+            offset_tracker: MergeOffsetTracker instance to log operations
+        """
+        logger.info(f"Starting row processing for sheet '{worksheet.title}' (with offset tracking)")
+        
+        # Store the offset tracker for use in row operations
+        self.offset_tracker = offset_tracker
+        
+        # Find all header rows
+        header_rows = self._find_header_rows(worksheet)
+        logger.info(f"Found {len(header_rows)} header rows in sheet '{worksheet.title}'")
+        
+        # Process each header row and its associated table
+        for header_row in header_rows:
+            self._process_table_from_header_with_tracking(worksheet, header_row)
+        
+        # Clean up any empty rows at the end after deletions
+        self._cleanup_empty_rows_with_tracking(worksheet)
+        
+        logger.info(f"Completed row processing for sheet '{worksheet.title}' (with offset tracking)")
+    
     def _cleanup_data_area_merges(self, worksheet: Worksheet) -> None:
         """
         Clean up merges in the data area (row 16 and below) before processing.
@@ -587,6 +613,125 @@ class RowProcessor:
             'tables_found': tables_found,
             'rows_to_remove': rows_to_remove
         }
+    
+    def _process_table_from_header_with_tracking(self, worksheet: Worksheet, header_row: int) -> None:
+        """
+        Process a table starting from a header row WITH offset tracking.
+        
+        Args:
+            worksheet: The worksheet to process
+            header_row: The header row number
+        """
+        logger.info(f"Processing table starting from header row {header_row} (with tracking)")
+        
+        # Find any column with a formula (SUM formula)
+        formula_col = self._find_formula_column(worksheet, header_row)
+        if formula_col is None:
+            logger.warning(f"No formula column found for header row {header_row}")
+            return
+        
+        # Find formula row (SUM formula)
+        formula_row = self._find_formula_row(worksheet, header_row, formula_col)
+        if formula_row is None:
+            logger.warning(f"No formula row found for header row {header_row}")
+            return
+        
+        logger.info(f"Table identified: header at row {header_row}, formula at row {formula_row}")
+        
+        # Remove rows from header to formula row (with tracking)
+        self._remove_row_range_with_tracking(worksheet, header_row, formula_row)
+        
+        # After deletion, insert 2 empty rows at the original header position (with tracking)
+        self._insert_empty_rows_with_tracking(worksheet, header_row, 2)
+        
+        logger.info(f"Successfully processed table: removed rows {header_row}-{formula_row}, inserted 2 empty rows at position {header_row}")
+    
+    def _remove_row_range_with_tracking(self, worksheet: Worksheet, start_row: int, end_row: int) -> None:
+        """
+        Remove a range of rows from the worksheet with offset tracking.
+        
+        Args:
+            worksheet: The worksheet to modify
+            start_row: Starting row number (inclusive)
+            end_row: Ending row number (inclusive)
+        """
+        logger.info(f"Preparing to delete rows {start_row} to {end_row} from sheet '{worksheet.title}' (with tracking)")
+        
+        # CRITICAL: Unmerge all cells in the deletion range BEFORE deleting rows
+        self._unmerge_cells_in_range(worksheet, start_row, end_row)
+        
+        # Calculate how many rows to delete
+        rows_to_delete = end_row - start_row + 1
+        
+        # Log the deletion operation for offset tracking
+        if hasattr(self, 'offset_tracker') and self.offset_tracker:
+            self.offset_tracker.log_delete_rows(start_row, rows_to_delete, worksheet.title)
+        
+        # Delete rows from bottom to top to avoid shifting issues
+        for i in range(rows_to_delete):
+            # Delete the start_row (it will shift up after each deletion)
+            worksheet.delete_rows(start_row)
+        
+        logger.info(f"Successfully deleted {rows_to_delete} rows from {start_row} to {end_row} (tracked)")
+    
+    def _insert_empty_rows_with_tracking(self, worksheet: Worksheet, position: int, num_rows: int) -> None:
+        """
+        Insert empty rows at the specified position with offset tracking.
+        
+        Args:
+            worksheet: The worksheet to modify
+            position: The row position where to insert (1-based)
+            num_rows: Number of empty rows to insert
+        """
+        # Log the insertion operation for offset tracking
+        if hasattr(self, 'offset_tracker') and self.offset_tracker:
+            self.offset_tracker.log_insert_rows(position, num_rows, worksheet.title)
+        
+        for i in range(num_rows):
+            worksheet.insert_rows(position)
+        
+        logger.debug(f"Inserted {num_rows} empty rows at position {position} (tracked)")
+    
+    def _cleanup_empty_rows_with_tracking(self, worksheet: Worksheet) -> None:
+        """
+        Remove empty rows at the end of the worksheet with offset tracking.
+        
+        Args:
+            worksheet: The worksheet to clean up
+        """
+        max_row = worksheet.max_row
+        
+        # Start from the bottom and work up to find the last non-empty row
+        last_non_empty_row = 0
+        for row in range(max_row, 0, -1):
+            row_has_content = False
+            for col in range(1, worksheet.max_column + 1):
+                cell = worksheet.cell(row=row, column=col)
+                if cell.value is not None and str(cell.value).strip():
+                    row_has_content = True
+                    break
+            
+            if row_has_content:
+                last_non_empty_row = row
+                break
+        
+        # If we found empty rows at the end, delete them
+        if last_non_empty_row < max_row:
+            rows_to_delete = max_row - last_non_empty_row
+            # Don't delete if we only have 2 or fewer empty rows (might be our inserted rows)
+            if rows_to_delete > 2:
+                actual_delete = rows_to_delete - 2
+                delete_start = last_non_empty_row + 3
+                
+                # Log the cleanup deletion for offset tracking
+                if hasattr(self, 'offset_tracker') and self.offset_tracker:
+                    self.offset_tracker.log_delete_rows(delete_start, actual_delete, worksheet.title)
+                
+                for i in range(actual_delete):
+                    worksheet.delete_rows(delete_start)  # Delete from 3rd empty row onwards
+                logger.info(f"Cleaned up {actual_delete} empty rows at the end of sheet '{worksheet.title}' (tracked)")
+            else:
+                logger.info(f"Preserved {rows_to_delete} empty rows at the end of sheet '{worksheet.title}' (likely inserted rows)")
 
 
 def main():
@@ -630,4 +775,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main()) 
+    exit(main())

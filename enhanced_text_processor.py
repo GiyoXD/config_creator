@@ -40,7 +40,7 @@ class EnhancedTextProcessor:
                     r'dated[^a-zA-Z]*\d{4}/\d{1,2}/\d{1,2}',    # "dated" + any non-letters + yyyy/mm/dd
                     r'dated[^a-zA-Z]*\d{1,2}/\d{1,2}/\d{2}'     # "dated" + any non-letters + dd/mm/yy
                 ],
-                'replacement': 'JFDATE'
+                'replacement': 'JFTIME'
             },
             'date_label': {
                 'patterns': [
@@ -49,7 +49,7 @@ class EnhancedTextProcessor:
                     r'invoice\s+date[^a-zA-Z]',                  # "invoice date" + any non-letter
                     r'contract\s+date[^a-zA-Z]'                  # "contract date" + any non-letter
                 ],
-                'replacement': 'JFDATE'
+                'replacement': 'JFTIME'
             },
             'invoice_label': {
                 'patterns': [
@@ -100,7 +100,7 @@ class EnhancedTextProcessor:
                     r'departure[^a-zA-Z]*\d{1,2}/\d{1,2}/\d{4}', # "departure" + any non-letters + dd/mm/yyyy
                     r'departure[^a-zA-Z]*\d{4}/\d{1,2}/\d{1,2}'  # "departure" + any non-letters + yyyy/mm/dd
                 ],
-                'replacement': 'JFDATE'
+                'replacement': 'JFTIME'
             }
         }
     
