@@ -106,11 +106,39 @@ class RowProcessor:
     
     def _process_worksheet_rows(self, worksheet: Worksheet) -> None:
         """
-        Process rows in a single worksheet.
+        Process rows in a single worksheet with comprehensive merge handling.
         
         Args:
             worksheet: The worksheet to process
         """
+        logger.info(f"Starting row processing for sheet '{worksheet.title}'")
+        
+        # Find all header rows
+        header_rows = self._find_header_rows(worksheet)
+        logger.info(f"Found {len(header_rows)} header rows in sheet '{worksheet.title}'")
+        
+        # Note: We don't need to clean up ALL data area merges upfront
+        # The targeted unmerging in _remove_row_range handles conflicts properly
+        
+        # Process each header row and its associated table
+        for header_row in header_rows:
+            self._process_table_from_header(worksheet, header_row)
+        
+        # Clean up any empty rows at the end after deletions
+        self._cleanup_empty_rows(worksheet)
+        
+        logger.info(f"Completed row processing for sheet '{worksheet.title}'")
+    
+    def _process_worksheet_rows_no_merge_handling(self, worksheet: Worksheet) -> None:
+        """
+        Process rows in a single worksheet WITHOUT internal merge handling.
+        This is used when the caller (like xlsx_generator) handles merges at a higher level.
+        
+        Args:
+            worksheet: The worksheet to process
+        """
+        logger.info(f"Starting row processing for sheet '{worksheet.title}' (no merge handling)")
+        
         # Find all header rows
         header_rows = self._find_header_rows(worksheet)
         logger.info(f"Found {len(header_rows)} header rows in sheet '{worksheet.title}'")
@@ -121,6 +149,25 @@ class RowProcessor:
         
         # Clean up any empty rows at the end after deletions
         self._cleanup_empty_rows(worksheet)
+        
+        logger.info(f"Completed row processing for sheet '{worksheet.title}' (no merge handling)")
+    
+    def _cleanup_data_area_merges(self, worksheet: Worksheet) -> None:
+        """
+        Clean up merges in the data area (row 16 and below) before processing.
+        This ensures clean row deletion without merge corruption.
+        
+        Args:
+            worksheet: The worksheet to clean
+        """
+        # Import the utility function
+        from merge_utils import force_unmerge_from_row_down
+        
+        # Unmerge everything from row 16 down (preserves header area)
+        # This is exactly what we want - clean slate for row processing
+        force_unmerge_from_row_down(worksheet, 16)
+        
+        logger.info("Cleaned up data area merges (row 16+) for clean row processing")
     
     def _find_header_rows(self, worksheet: Worksheet) -> List[int]:
         """
@@ -216,7 +263,7 @@ class RowProcessor:
     
     def _process_table_from_header(self, worksheet: Worksheet, header_row: int) -> None:
         """
-        Process a table starting from a header row.
+        Process a table starting from a header row with comprehensive merge handling.
         
         Args:
             worksheet: The worksheet to process
@@ -236,14 +283,16 @@ class RowProcessor:
             logger.warning(f"No formula row found for header row {header_row}")
             return
         
-        # Remove rows from header to formula row
+        logger.info(f"Table identified: header at row {header_row}, formula at row {formula_row}")
+        
+        # Remove rows from header to formula row (this includes proper merge cleanup)
         self._remove_row_range(worksheet, header_row, formula_row)
         
         # After deletion, insert 2 empty rows at the original header position
         # The header position is still valid because we deleted from header_row down
         self._insert_empty_rows(worksheet, header_row, 2)
         
-        logger.info(f"Removed rows {header_row} to {formula_row} and inserted 2 empty rows at position {header_row} in sheet '{worksheet.title}'")
+        logger.info(f"Successfully processed table: removed rows {header_row}-{formula_row}, inserted 2 empty rows at position {header_row}")
     
     def _find_formula_column(self, worksheet: Worksheet, header_row: int) -> Optional[int]:
         """
@@ -300,13 +349,20 @@ class RowProcessor:
     
     def _remove_row_range(self, worksheet: Worksheet, start_row: int, end_row: int) -> None:
         """
-        Remove a range of rows from the worksheet.
+        Remove a range of rows from the worksheet with proper merge cleanup.
+        This completely removes rows and their associated merges (as intended).
         
         Args:
             worksheet: The worksheet to modify
             start_row: Starting row number (inclusive)
             end_row: Ending row number (inclusive)
         """
+        logger.info(f"Preparing to delete rows {start_row} to {end_row} from sheet '{worksheet.title}'")
+        
+        # CRITICAL: Unmerge all cells in the deletion range BEFORE deleting rows
+        # This prevents merge corruption and ensures clean deletion
+        self._unmerge_cells_in_range(worksheet, start_row, end_row)
+        
         # Calculate how many rows to delete
         rows_to_delete = end_row - start_row + 1
         
@@ -315,7 +371,77 @@ class RowProcessor:
             # Delete the start_row (it will shift up after each deletion)
             worksheet.delete_rows(start_row)
         
-        logger.info(f"Deleted {rows_to_delete} rows from {start_row} to {end_row}")
+        logger.info(f"Successfully deleted {rows_to_delete} rows from {start_row} to {end_row} (merges properly cleaned)")
+    
+    def _unmerge_cells_in_range(self, worksheet: Worksheet, start_row: int, end_row: int) -> None:
+        """
+        Unmerge only cells that are completely contained within the deletion range.
+        This preserves merges that extend beyond the deletion area.
+        
+        Args:
+            worksheet: The worksheet to modify
+            start_row: Starting row number (inclusive)
+            end_row: Ending row number (inclusive)
+        """
+        # Create a copy of merged ranges to avoid modification during iteration
+        merged_ranges_copy = list(worksheet.merged_cells.ranges)
+        unmerged_count = 0
+        preserved_count = 0
+        
+        logger.debug(f"Checking {len(merged_ranges_copy)} merged ranges for deletion conflicts with rows {start_row}-{end_row}")
+        
+        for merged_range in merged_ranges_copy:
+            if self._merge_completely_within_deletion_range(merged_range.min_row, merged_range.max_row, start_row, end_row):
+                # Merge is completely within deletion range - safe to unmerge
+                try:
+                    logger.debug(f"Unmerging merge completely within deletion range: {merged_range.coord}")
+                    worksheet.unmerge_cells(str(merged_range))
+                    unmerged_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to unmerge range {merged_range.coord}: {e}")
+            elif self._ranges_intersect(merged_range.min_row, merged_range.max_row, start_row, end_row):
+                # Merge extends beyond deletion range - preserve it
+                logger.debug(f"Preserving merge that extends beyond deletion range: {merged_range.coord}")
+                preserved_count += 1
+        
+        if unmerged_count > 0:
+            logger.info(f"Unmerged {unmerged_count} merges completely within deletion range")
+        if preserved_count > 0:
+            logger.info(f"Preserved {preserved_count} merges that extend beyond deletion range")
+        if unmerged_count == 0 and preserved_count == 0:
+            logger.debug("No merges found in deletion range")
+    
+    def _merge_completely_within_deletion_range(self, merge_start: int, merge_end: int, delete_start: int, delete_end: int) -> bool:
+        """
+        Check if a merge is completely contained within the deletion range.
+        
+        Args:
+            merge_start: Start row of merged range
+            merge_end: End row of merged range  
+            delete_start: Start row of deletion range
+            delete_end: End row of deletion range
+            
+        Returns:
+            True if merge is completely within deletion range
+        """
+        # Merge is completely within deletion range if both start and end are within bounds
+        return merge_start >= delete_start and merge_end <= delete_end
+    
+    def _ranges_intersect(self, merge_start: int, merge_end: int, delete_start: int, delete_end: int) -> bool:
+        """
+        Check if two row ranges intersect.
+        
+        Args:
+            merge_start: Start row of merged range
+            merge_end: End row of merged range  
+            delete_start: Start row of deletion range
+            delete_end: End row of deletion range
+            
+        Returns:
+            True if ranges intersect
+        """
+        # Ranges intersect if one starts before the other ends
+        return not (merge_end < delete_start or merge_start > delete_end)
     
     def _insert_empty_rows(self, worksheet: Worksheet, position: int, num_rows: int) -> None:
         """

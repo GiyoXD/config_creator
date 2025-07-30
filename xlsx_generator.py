@@ -150,8 +150,9 @@ class XLSXGenerator:
             removal_stats['total_header_rows'] += stats['total_header_rows']
             removal_stats['tables_found'] += stats['tables_found']
             
-            # Process the worksheet
-            self.row_processor._process_worksheet_rows(worksheet)
+            # Process the worksheet WITHOUT internal merge handling
+            # (xlsx_generator handles merges at the top level)
+            self.row_processor._process_worksheet_rows_no_merge_handling(worksheet)
             
             # Calculate rows removed
             removal_stats['rows_removed'] += stats['rows_to_remove']

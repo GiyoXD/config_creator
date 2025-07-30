@@ -27,7 +27,7 @@ def store_original_merges(workbook: openpyxl.Workbook, sheet_names: List[str]) -
     print("DEBUG: STARTING MERGE STORAGE PROCESS")
     print("="*60)
     print("Storing original merge horizontal spans, top-left values, and row heights (NO coordinates)...")
-    print("  (Ignoring merges that start above row 16)") # Updated filter info
+    print("  (Ignoring merges that start above row 10)") # Updated filter info
     for sheet_name in sheet_names:
         if sheet_name in workbook.sheetnames:
             worksheet: Worksheet = workbook[sheet_name] # Type hint for clarity
@@ -43,12 +43,13 @@ def store_original_merges(workbook: openpyxl.Workbook, sheet_names: List[str]) -
                     # print(f"  Skipping merge {merged_range.coord} on sheet '{sheet_name}' - it spans multiple rows ({min_row} to {max_row}).")
                     continue
 
-                # ***** NEW CHECK 2: Skip if merge starts ABOVE row 16 *****
-                if min_row < 16:
-                    # print(f"  Skipping merge {merged_range.coord} on sheet '{sheet_name}' - starts at row {min_row} (above row 16).") # Keep commented unless needed
+                # ***** MODIFIED CHECK 2: Only skip merges in the very top area (rows 1-10) *****
+                # This preserves signature area merges while still filtering out header merges
+                if min_row < 10:
+                    # print(f"  Skipping merge {merged_range.coord} on sheet '{sheet_name}' - starts at row {min_row} (above row 10).") # Keep commented unless needed
                     skipped_above_16_count += 1
                     continue
-                # ***** END NEW CHECK *****
+                # ***** END MODIFIED CHECK *****
 
                 # --- If not skipped, proceed to get span, height, value ---
                 col_span = max_col - min_col + 1
@@ -107,7 +108,7 @@ def store_original_merges(workbook: openpyxl.Workbook, sheet_names: List[str]) -
 def find_and_restore_merges_heuristic(workbook: openpyxl.Workbook,
                                       stored_merges: Dict[str, List[Tuple[int, Any, Optional[float]]]],
                                       processed_sheet_names: List[str],
-                                      search_range_str: str = "A16:H200"):
+                                      search_range_str: str = "A10:H200"):
     """
     Attempts to restore merges based on stored HORIZONTAL spans, values, and row heights
     by searching for the value within a specified range (default A16:H200).
